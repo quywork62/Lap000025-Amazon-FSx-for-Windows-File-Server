@@ -456,27 +456,41 @@ Resources:
             }
             Disable-ieESC
 
-            # install vdbench (windows)
-            $path = "C:\Tools\DiskSpd-2.0.21a"
-            $url = "https://gallery.technet.microsoft.com/DiskSpd-A-Robust-Storage-6ef84e62/file/199535/2/DiskSpd-2.0.21a.zip"
-            $destination = "C:\Tools\DiskSpd-2.0.21a.zip"
+            # install diskspd (windows)
+            $diskSpdPath = "C:\Tools\DiskSpd"
+            $diskSpdUrl = "https://github.com/microsoft/diskspd/releases/latest/download/DiskSpd.zip"
+            $diskSpdDestination = "C:\Tools\DiskSpd.zip"
+            
+            New-Item -Type Directory -Path "C:\Tools" -Force
+            New-Item -Type Directory -Path $diskSpdPath -Force
+            
             $download = New-Object -Typename System.Net.WebClient
-            New-Item -Type Directory -Path $path
-            $download.DownloadFile($url,$destination)
+            $download.DownloadFile($diskSpdUrl, $diskSpdDestination)
+            
             $extract = New-Object -ComObject Shell.Application
-            $files = $extract.Namespace($destination).Items()
-            $extract.NameSpace($path).CopyHere($files)
+            $files = $extract.Namespace($diskSpdDestination).Items()
+            $extract.NameSpace($diskSpdPath).CopyHere($files)
 
-            # install fio (windows)
-            $path = "C:\Tools"
-            $url = "https://bsdio.com/fio/releases/fio-3.16-x64.zip"
-            $destination = "C:\Tools\fio-3.16-x64.zip"
-            $download = New-Object -Typename System.Net.WebClient
-            New-Item -Type Directory -Path $path
-            $download.DownloadFile($url,$destination)
-            $extract = New-Object -ComObject Shell.Application
-            $files = $extract.Namespace($destination).Items()
-            $extract.NameSpace($path).CopyHere($files)
+            # install fio (windows) via chocolatey
+            try {
+                # Install Chocolatey if not present
+                if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
+                    Write-Host "Installing Chocolatey..."
+                    Set-ExecutionPolicy Bypass -Scope Process -Force
+                    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+                    
+                    # Refresh environment variables
+                    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                }
+                
+                # Install FIO via Chocolatey
+                Write-Host "Installing FIO via Chocolatey..."
+                choco install fio -y --no-progress
+            }
+            catch {
+                Write-Host "Failed to install FIO via Chocolatey: $($_.Exception.Message)" -ForegroundColor Red
+            }
             
             </powershell>
   FSxDomainJoinInstallDFS:
@@ -498,7 +512,7 @@ Resources:
             type: StringList
             default: []
             description: "(Optional) AWS Managed Microsoft AD DNS IP addresses (i.e. 172.31.0.11, 172.31.0.12)
-              Required when DHCP is not configured. Learn more at http://docs.aws.amazon.com/directoryservice/latest/simple-ad/join_get_dns_addresses.html"
+              Required when DHCP is not configured. Learn more at https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_getting_started.html"
         mainSteps:
         - action: aws:domainJoin
           name: joinDomain
